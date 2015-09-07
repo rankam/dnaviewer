@@ -53,7 +53,7 @@ Your code should:
  - follow a consistent style and set of conventions
  - be modular
  - be documented/commented
- - be testable/tested (where you feel appropriate)
+ - be testable/tested
  - if using a framework, follow the best practices of that framework
  
 You should scaffold, structure, and package your mini-application enough so 
