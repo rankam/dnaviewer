@@ -166,6 +166,7 @@ for (i in data) {
       nullFeature.display = "none"
       nullFeature.strand = ""
       nullFeature.type = ""
+      nullFeature.enabled = true
       data.splice(i-1,0,nullFeature)
     }
   } 
@@ -173,14 +174,9 @@ for (i in data) {
 
   var g = svg.selectAll(".arc")
       .data(pie(data))
-    .enter().append("g")
-      .attr("class", "arc")
-      .each(function(d) { this._current = d; });
-
-
-  g.append("path")
+    .enter().append("path")
       .attr("d", arc)
-      // .attr("class", function(d) { return d.data.bases })
+      .attr("class", "arc")
       .style("fill", function(d,i) { 
         if (d.data.name == '') {
           return "black"
@@ -188,20 +184,7 @@ for (i in data) {
           return color(i); 
         }
       })
-
-
-
-
-    //  var ticks = g.selectAll("line").data(pie(data)).enter().append("line");
-    // ticks.attr("x1", 0)
-    // .attr("x2", 0)
-    // .attr("y1", -radius+0)
-    // .attr("y2", -radius-6)
-    // .attr("stroke", "grey")
-    //   .attr("transform", function(d) {
-    //     return "rotate(" + (d.startAngle+d.endAngle)/2 * (180/Math.PI) + ")";
-    //   });
-    
+      .each(function(d) { this._current = d; })
     
 // toolip events 
   g.on('click', function(d) {
@@ -209,6 +192,9 @@ for (i in data) {
     if (d.data.bases != "undefined") {
       tooltip.append("g").append("text").html("<h4>"+d.data.name+"</h4> <br />" + d.data.bases );   
     }
+    var total = d3.sum(data.map(function(d) {
+    return (d.enabled) ? d.size : 0;        
+  }));
   });
 
 // g.on('mouseout', function() {
@@ -258,13 +244,14 @@ legend.append("rect")
   }
 
   pie.value(function(d) {
-    if (d.label === label) d.enabled = enabled;
+
+    if (d === label) d.enabled = enabled;
     return (d.enabled) ? d.size : 0;
   });
 
-  // path = g.data(pie(data));
+  path = g.data(pie(data));
 
- g.transition()
+ path.transition()
     .duration(750)
     .attrTween('d', function(d) {
       var interpolate = d3.interpolate(this._current, d);
