@@ -4,7 +4,9 @@
 <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" integrity="sha256-MfvZlkHCEqatNoGiOXveE8FIwMzZg4W85qfrfIFBfYc= sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
 </head>
 <style>
-
+body {
+  background-color: #ecf0f1;
+}
 .chart {
   padding-top: 10px;
   padding-bottom: 50px;
@@ -28,23 +30,55 @@
   max-width: 1000px;
   word-wrap: break-word;
   opacity:1!important;
-  margin-top: 20px;
+  margin-top: 10px;
   padding-bottom: 50px;
+  max-height: 360px;
+  min-height: 360px;
+  overflow: hidden;
+  background-color: #dde4e6;
+
+}
+
+hr {
+  border-top: 1px solid #2c3e50;
+  height: 1px;
 }
 
 .table {
   text-transform: capitalize;
 }
 
-
+.show-overflow-btn {
+  display: none;
+}
 rect {
-  cursor: pointer!important;                           /* NEW */
+  cursor: pointer!important;                 
   stroke-width: 2!important;
 }
-rect.disabled {                              /* NEW */
-  fill: transparent !important;              /* NEW */
+rect.disabled {                              
+  fill: transparent !important;              
 } 
 
+.feature-start-end {
+  font-weight: bold;
+  font-size: 9pt;
+}
+
+.btn {
+  background-color: #dde4e6;
+}
+
+.instructions {
+  font-size:12pt
+}
+
+h4 {
+  text-transform: capitalize;
+  margin-bottom: 0px;
+}
+
+h3 {
+}
 </style>
 <body>
 
@@ -61,7 +95,12 @@ rect.disabled {                              /* NEW */
     </div>
       <div class="col-md-5">
       <div class="tooltip-container well well-lg">
-      </div>
+        <h4>Welcome to DNA Viewer</h4>
+        <hr/>
+       <span class="instructions"> Using DNA Viewer, you can explore the DNA features of a DNA molecule. To your left, you will find a Plasmid Diagram that visually shows the features of the DNA molecule. Clicking on one of the DNA features in the Plasmid Diagram will replace this text with more information about the feature such as its sequence and direction. Selecting one or multiple rectangles in the legend will add or remove that feature from the Plasmid Diagram. In the table below, you can view the high level features. </span>
+    </div>
+      <input type="button" class="btn btn-default show-overflow-btn col-md-12" value="Show More" />
+      
     </div>
   </div>
 
@@ -84,31 +123,93 @@ function replaceUnderscores(str) {
 }
 
 
+function isOverflowed() {
+  /*
+    check to see if the instructions area is overflowed - typically caused by a very long bases sequence
+  */
+  if (d3.selectAll('.tooltip-container')[0][0].scrollHeight >  d3.selectAll('.tooltip-container')[0][0].clientHeight) {
+    d3.selectAll(".show-overflow-btn")
+    .style("display", "inline")
+    toggleOverflow()
+  } else {
+     d3.selectAll(".show-overflow-btn")
+    .style("display", "none")   
+  }
+}
 
+function toggleOverflow() {
+   /*
+    expand the instruction area to allow the user to see all of the content that is contained in the area
+    also allows the user to collaps the content back to its original size
+  */ 
+  var overflowBtn = d3.select('.show-overflow-btn')
+  overflowBtn.on('click', function(d) {
 
+    if (overflowBtn[0][0].value == "Show More") {
+
+      d3.selectAll('.tooltip-container')
+        .style("max-height", "inherit")
+        .style("overflow", "");
+        overflowBtn[0][0].value = 'Show Less'
+
+      } else {
+
+      d3.selectAll('.tooltip-container')
+        .style("max-height", "360px")
+        .style("overflow", "hidden");
+        overflowBtn[0][0].value = 'Show More'        
+      }
+      
+      })    
+    }
+
+// initialize the properties that will be used to set the size of the svg
 var width = 460,
     height = 320,
     radius = Math.min(width, height) / 2
 
+// d3 builtin that creates an array of 20 colors
 var color = d3.scale.category20()
 
+// initialize the arc object which is one of the keys to creating the plasmaid diagram
 var arc = d3.svg.arc()
     .outerRadius(function(d) {
-      if (d.data.bases == 'undefined') {
+
+      // check to see if its a nullFeature as we want them to be more narrow than real dna features
+      if (d.data.name == 'nullFeature') {
+        return radius - 10
+      } else {
+        return radius - 0  
+      }
+    })
+    
+      // check to see if its a nullFeature as we want them to be more narrow than real dna features
+    .innerRadius(function(d) {
+      if (d.data.name == 'nullFeature') {
+        return radius - 15
+      } else {
+        return radius - 30  
+      }
+    });
+ 
+ // object that will allow each dna feature to expand when selected by the user to indicate that it is selected
+var increaseArc = d3.svg.arc()
+    .outerRadius(function(d) {
+      if (d.data.name == 'nullFeature') {
         return radius - 10
       } else {
         return radius - 0  
       }
     })
     .innerRadius(function(d) {
-      if (d.data.bases == 'undefined') {
+      if (d.data.name == 'nullFeature') {
         return radius - 15
       } else {
-        return radius - 30  
+        return radius - 40  
       }
-    });
-      
+    });     
 
+// d3.layout.pie will create teh start and end angles of the segments used in the diagram
 var pie = d3.layout.pie()
     .sort(null)
     .value(function(d) { return d.size; });
@@ -121,64 +222,117 @@ var svg = d3.select(".chart").append("svg")
 
 var tooltip = d3.selectAll('.tooltip-container')
 
-d3.json("/fixtures/dnamolecule.json", function(error, dd) {
+// ajax call to get the json file with our data
+d3.json("/fixtures/dnamolecule.json", function(error, dataset) {
 
+  // initialize array that will store our data in a format suitable for d3.js
   data = []
 
-  dd.dnafeatures.forEach(function(d,i) {
+  // iterate over data to extract what is decessary necessary 
+  dataset.dnafeatures.forEach(function(d,i) {
     
+    // initialize object that will store the dna features needed for analysis
     dnafeature = {};
-    dnafeature.name = replaceUnderscores( d.dnafeature.name)
+    dnafeature.name = replaceUnderscores(d.dnafeature.name)
     dnafeature.size = d.dnafeature.length;
     dnafeature.bases = d.dnafeature.pattern.bases;
     dnafeature.start = parseFloat(d.start)
     dnafeature.end = d.end;
-    dnafeature.display = "" // used for styling and has nothing to do with a gene
+    
+    // used for styling and has nothing to do with a gene
+    dnafeature.display = "" 
+
     if (d.strand === -1) {
       dnafeature.strand = "Backward"
     } else {
       dnafeature.strand = "Forward"
     }
     dnafeature.type = replaceUnderscores(d.dnafeature.category.name)
+    
+    // used for adding or removing data from the plasmaid when a rectangle in the legend is selected
     dnafeature.enabled = true; 
+    
     data.push(dnafeature);
 
   })
 
+// sort the data in ascending order based on the start value of each object
+// this is done so that I can fill in the "missing" values needed to complete the plasmaid
 data.sort(function(a, b) {
     return parseFloat(a.start) - parseFloat(b.start);
 });
 
+function addMissingData(data) {
+  /*
+    the data in its current form has gaps that need to be filled to complete the plasmaid
+    the data looks like [{start:29, end:58}, {start:283, end: 389}...]
+    it needs to look like [{start:0, end:28}, {start:29, end:58}, {start:59, end:282}...]
+    this function will iterate over our current data, identify the 'gaps', and insert a nullFeature
+    object into the data array that contains the missing start and end values
+  */
+  for (i in data) {
+    if (i  % 2 === 1) {
 
-for (i in data) {
-  if (i  % 2 === 1) {
-    if ( data[i-1].start + data[i-1].size + 1 != data[i].start ) {
-      nullFeature = {}
-      nullFeature.name = ''
-      if (i-1 == 0) {
-        nullFeature.start = data[i-1].start - (data[i-1].end - data[i-1].size)
-      } else {
-        nullFeature.start = data[i-1].end + 1
+      // compare data object i with data object i-1 to see if there are missing gaps
+      if ( data[i-1].start + data[i-1].size + 1 != data[i].start ) {
+        
+        // initialize the nullFeature object
+        nullFeature = {}
+
+        // this isn't a real feature so it doesn't have a name
+        nullFeature.name = 'nullFeature'
+
+        // check to see if it's the first data object which needs to contain start:0
+        if (i-1 == 0) {
+          nullFeature.start = data[i-1].start - (data[i-1].end - data[i-1].size)
+
+        } else {
+
+          // set the start value of the nullFeature
+          nullFeature.start = data[i-1].end + 1
+        }
+
+        // set the end value of the nullFeature
+        nullFeature.end = data[i].start - 1
+
+        // set the size value of the nullFeature
+        nullFeature.size = nullFeature.end - nullFeature.start
+
+        // this isn't a real feature so it doesn't have a bases
+        nullFeature.bases = ''
+
+        // used for styling in the legend
+        nullFeature.display = "none"
+        
+        // nullFeatures don't have a direction
+        nullFeature.strand = ""
+        
+        // nullFeatures don't have a type
+        nullFeature.type = ""
+
+        // used for adding or removing data from the plasmaid when a rectangle in the legend is selected
+        nullFeature.enabled = true
+        
+        // insert the nullFeature into the data array with the real dna features
+        data.splice(i-1,0,nullFeature)
       }
-      nullFeature.end = data[i].start - 1
-      nullFeature.size = nullFeature.end - nullFeature.start
-      nullFeature.bases = 'undefined'
-      nullFeature.display = "none"
-      nullFeature.strand = ""
-      nullFeature.type = ""
-      nullFeature.enabled = true
-      data.splice(i-1,0,nullFeature)
-    }
+    } 
   } 
+  return data
 }
 
+  data = addMissingData(data);
+
+  // initialize our object that will create the elements of the pasmaid
   var g = svg.selectAll(".arc")
       .data(pie(data))
     .enter().append("path")
       .attr("d", arc)
       .attr("class", "arc")
-      .style("fill", function(d,i) { 
-        if (d.data.name == '') {
+
+      // we only want to give color to real dna features, not nullFeatures
+      .style("fill", function(d,i) {
+        if (d.data.name == 'nullFeature') {
           return "black"
         } else {
           return color(i); 
@@ -186,27 +340,43 @@ for (i in data) {
       })
       .each(function(d) { this._current = d; })
     
-// toolip events 
+  // event that updates our 'instructions' area with information about the selected dna feature
   g.on('click', function(d) {
+
+    // clear the current text
     tooltip.text('');
-    if (d.data.bases != "undefined") {
-      tooltip.append("g").append("text").html("<h4>"+d.data.name+"</h4> <br />" + d.data.bases );   
+
+    // update the instructions area once a dna feature is selected
+    if (d.data.name != "nullFeature") {
+      tooltip.append("g").append("text").html("<h4>"+d.data.name+" - " + d.data.strand + "</h4> <hr /> <h5>"  + "</h5><p class='feature-start-end'>["+ d.data.start +"] Start - [" + d.data.end +"] End </p>" +d.data.bases );   
+    } else {
+      tooltip.append("g").append("text").html("<h4>Welcome to DNA Viewer</h4><hr/><span class='instructions'> Using DNA Viewer, you can explore the DNA features of a DNA molecule. To your left, you will find a Plasmid Diagram that visually shows the features of the DNA molecule. Clicking on one of the DNA features in the Plasmid Diagram will replace this text with more information about the feature such as its sequence and direction. Selecting one or multiple rectangles in the legend will add or remove that feature from the Plasmid Diagram. In the table below, you can view the high level features. </span>")
     }
-    var total = d3.sum(data.map(function(d) {
-    return (d.enabled) ? d.size : 0;        
-  }));
+
+      var total = d3.sum(data.map(function(d) {
+      return (d.enabled) ? d.size : 0;        
+    }));
+    d3.select(this)
+      .transition()
+      .duration(1000)
+      .attr("d", increaseArc)
+
+    isOverflowed()
   });
 
-// g.on('mouseout', function() {
-//   tooltip.text('');
-// });
+g.on('mouseout', function() {
+  d3.select(this)
+    .transition()
+    .duration(1000)
+    .attr("d", arc)
+});
 
 
 // create new dataset with nullFeatures removed so that the black areas of the chart do not show up in the legend
 var legendData = [];
 data.forEach(function(d, i) {
 
-  if (d.bases != "undefined") {
+  if (d.name != "nullFeature") {
 
     // keep the original indexes so that the legend color matches the chart
     d.colorIndex = i
@@ -271,9 +441,6 @@ legend.append("text")
   .text(function(d) { return d.name; })
 
 
-
-
-
 // The table generation function
 function tabulate(data, columns) {
     var table = d3.select(".summary-table").append("table")
@@ -295,7 +462,7 @@ function tabulate(data, columns) {
         .enter()
         .append("tr")
         .attr("class", function(d) {
-          if (d.name == "") {
+          if (d.name == "nullFeature") {
             return "hidden-row"
           } else {
             return "visibile-row"
@@ -324,7 +491,7 @@ function tabulate(data, columns) {
 }
 
 // render the table
- var peopleTable = tabulate(data, ["name", "type", "start", "end", "strand", "size"]);
+ var summaryTable = tabulate(data, ["name", "type", "start", "end", "strand", "size"]);
  d3.selectAll(".hidden-row")
   .style("display", "none")
 
