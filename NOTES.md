@@ -1,0 +1,3 @@
+I know very little about genetics, but I do know that it has to do with sequencing. As such, I'm assuming I can model my data as a sequence of events that can be visualized. 
+
+first i tried to implement a sunburst chart - i soon figured out that, that I was overcomplicating my visualization as a modified donut chart would do. I would just have to do some data munging and rearranging to create the dataset that I would need. 
