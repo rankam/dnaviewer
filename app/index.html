@@ -38,8 +38,8 @@
 
 
 rect {
-  cursor: pointer;                           /* NEW */
-  stroke-width: 2;
+  cursor: pointer!important;                           /* NEW */
+  stroke-width: 2!important;
 }
 rect.disabled {                              /* NEW */
   fill: transparent !important;              /* NEW */
@@ -222,12 +222,14 @@ var legend = d3.select(".chart").append("svg")
   .selectAll("g")
   .data(legendData)
   .enter().append("g")
-  .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+  .attr("transform", function(d, i) { return "translate(0," + i * 21 + ")"; });
 
 legend.append("rect")
   .attr("width", 18)
   .attr("height", 18)
+  .attr("class", "legend-rect")
   .style("fill", function(d, i) { return color(d.colorIndex); })
+  .style("stroke",function(d, i) { return color(d.colorIndex); })
 .on('click', function(label) {
   var rect = d3.select(this);
   var enabled = true;
