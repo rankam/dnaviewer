@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+<head>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" integrity="sha256-MfvZlkHCEqatNoGiOXveE8FIwMzZg4W85qfrfIFBfYc= sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+</head>
 <style>
 
-body {
-  font: 10px sans-serif;
+.chart {
+  padding-top: 10px;
+  padding-bottom: 50px;
+  margin: 0 auto; 
 }
 
 .arc path {
@@ -18,14 +23,72 @@ body {
   text-transform: capitalize;
 }
 
+.tooltip-container {
+  font-size: 8pt;
+  max-width: 1000px;
+  word-wrap: break-word;
+  opacity:1!important;
+  margin-top: 20px;
+  padding-bottom: 50px;
+}
+
+.table {
+  text-transform: capitalize;
+}
+
+
+rect {
+  cursor: pointer;                           /* NEW */
+  stroke-width: 2;
+}
+rect.disabled {                              /* NEW */
+  fill: transparent !important;              /* NEW */
+} 
+
 </style>
 <body>
+
+  <div class="container">
+    <h2>DNA Viewer</h2>
+    <hr/>
+  </div>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="chart">
+
+      </div>
+    </div>
+      <div class="col-md-5">
+      <div class="tooltip-container well well-lg">
+      </div>
+    </div>
+  </div>
+
+
+  <div class="row">
+    <div class="col-md-10 col-md-offset-1">
+      <div class="summary-table">
+
+      </div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha256-Sk3nkD6mLTMOF0EOpNtsIry+s1CsaqQC1rVLTAy+0yc= sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script>
 
-var width = 960,
-    height = 500,
-    radius = Math.min(width, height) / 2;
+// HELPER FUNCTIONS 
+function replaceUnderscores(str) {
+  return str.replace(/_/g, ' ')
+}
+
+
+
+
+var width = 460,
+    height = 320,
+    radius = Math.min(width, height) / 2
 
 var color = d3.scale.category20()
 
@@ -50,11 +113,13 @@ var pie = d3.layout.pie()
     .sort(null)
     .value(function(d) { return d.size; });
 
-var svg = d3.select("body").append("svg")
+var svg = d3.select(".chart").append("svg")
     .attr("width", width)
-    .attr("height", height)
+    .attr("height", height+20)
   .append("g")
-    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+    .attr("transform", "translate(" + width / 2 + "," + height / 1.9 + ")");
+
+var tooltip = d3.selectAll('.tooltip-container')
 
 d3.json("/fixtures/dnamolecule.json", function(error, dd) {
 
@@ -63,12 +128,19 @@ d3.json("/fixtures/dnamolecule.json", function(error, dd) {
   dd.dnafeatures.forEach(function(d,i) {
     
     dnafeature = {};
-    dnafeature.name = d.dnafeature.name;
+    dnafeature.name = replaceUnderscores( d.dnafeature.name)
     dnafeature.size = d.dnafeature.length;
     dnafeature.bases = d.dnafeature.pattern.bases;
     dnafeature.start = parseFloat(d.start)
     dnafeature.end = d.end;
-    dnafeature.display = "";
+    dnafeature.display = "" // used for styling and has nothing to do with a gene
+    if (d.strand === -1) {
+      dnafeature.strand = "Backward"
+    } else {
+      dnafeature.strand = "Forward"
+    }
+    dnafeature.type = replaceUnderscores(d.dnafeature.category.name)
+    dnafeature.enabled = true; 
     data.push(dnafeature);
 
   })
@@ -92,33 +164,56 @@ for (i in data) {
       nullFeature.size = nullFeature.end - nullFeature.start
       nullFeature.bases = 'undefined'
       nullFeature.display = "none"
+      nullFeature.strand = ""
+      nullFeature.type = ""
       data.splice(i-1,0,nullFeature)
     }
   } 
 }
 
-blah = []
-data.forEach(function(d) {
-  blah.push(d.start)
-})
-console.log(blah)
-
   var g = svg.selectAll(".arc")
       .data(pie(data))
     .enter().append("g")
       .attr("class", "arc")
+      .each(function(d) { this._current = d; });
 
 
   g.append("path")
       .attr("d", arc)
-      .attr("class", function(d) { return d.data.bases })
+      // .attr("class", function(d) { return d.data.bases })
       .style("fill", function(d,i) { 
         if (d.data.name == '') {
           return "black"
         } else {
           return color(i); 
         }
-      });
+      })
+
+
+
+
+    //  var ticks = g.selectAll("line").data(pie(data)).enter().append("line");
+    // ticks.attr("x1", 0)
+    // .attr("x2", 0)
+    // .attr("y1", -radius+0)
+    // .attr("y2", -radius-6)
+    // .attr("stroke", "grey")
+    //   .attr("transform", function(d) {
+    //     return "rotate(" + (d.startAngle+d.endAngle)/2 * (180/Math.PI) + ")";
+    //   });
+    
+    
+// toolip events 
+  g.on('click', function(d) {
+    tooltip.text('');
+    if (d.data.bases != "undefined") {
+      tooltip.append("g").append("text").html("<h4>"+d.data.name+"</h4> <br />" + d.data.bases );   
+    }
+  });
+
+// g.on('mouseout', function() {
+//   tooltip.text('');
+// });
 
 
 // create new dataset with nullFeatures removed so that the black areas of the chart do not show up in the legend
@@ -134,7 +229,7 @@ data.forEach(function(d, i) {
   }
 })
 
-var legend = d3.select("body").append("svg")
+var legend = d3.select(".chart").append("svg")
   .attr("class", "legend")
   .attr("width", radius)
   .attr("height", radius * 2)
@@ -146,7 +241,39 @@ var legend = d3.select("body").append("svg")
 legend.append("rect")
   .attr("width", 18)
   .attr("height", 18)
-  .style("fill", function(d, i) { return color(d.colorIndex); });
+  .style("fill", function(d, i) { return color(d.colorIndex); })
+.on('click', function(label) {
+  var rect = d3.select(this);
+  var enabled = true;
+  var totalEnabled = d3.sum(data.map(function(d) {
+    return (d.enabled) ? 1 : 0;
+  }));
+  
+  if (rect.attr('class') === 'disabled') {
+    rect.attr('class', '');
+  } else {
+    if (totalEnabled < 2) return;
+    rect.attr('class', 'disabled');
+    enabled = false;
+  }
+
+  pie.value(function(d) {
+    if (d.label === label) d.enabled = enabled;
+    return (d.enabled) ? d.size : 0;
+  });
+
+  // path = g.data(pie(data));
+
+ g.transition()
+    .duration(750)
+    .attrTween('d', function(d) {
+      var interpolate = d3.interpolate(this._current, d);
+      this._current = interpolate(0);
+      return function(t) {
+        return arc(interpolate(t));
+      };
+    });
+});
 
 legend.append("text")
   .attr("x", 24)
@@ -155,10 +282,13 @@ legend.append("text")
   .text(function(d) { return d.name; })
 
 
+
+
+
 // The table generation function
 function tabulate(data, columns) {
-    var table = d3.select("body").append("table")
-            .attr("style", "margin-left: 250px"),
+    var table = d3.select(".summary-table").append("table")
+            .attr("class", "table"),
         thead = table.append("thead"),
         tbody = table.append("tbody");
 
@@ -205,7 +335,7 @@ function tabulate(data, columns) {
 }
 
 // render the table
- var peopleTable = tabulate(data, ["name", "size", "start", "end"]);
+ var peopleTable = tabulate(data, ["name", "type", "start", "end", "strand", "size"]);
  d3.selectAll(".hidden-row")
   .style("display", "none")
 
