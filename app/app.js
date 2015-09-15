@@ -335,7 +335,7 @@ function addMissingData(data) {
 
       // compare data object i with data object i-1 to see if there are missing gaps
       if ( data[i-1].end + data[i-1].size + 1 != data[i].start ) {
-        
+
         // initialize the nullFeature object
         nullFeature = {}
 
