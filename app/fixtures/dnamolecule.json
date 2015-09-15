@@ -203,7 +203,7 @@
                                                   "location":null,
                                                   "modified":"2014-12-11T11:56:00.650829",
                                                   "name":"misc_feature",
-                                                  "namespace":null,
+                                                  "namespace":null, 
                                                   "organisationId":1,
                                                   "properties":{},
                                                   "userId":1},
